@@ -3,6 +3,17 @@ part of '../main.dart';
 class WebUntisService {
   static const _timeout = Duration(seconds: 20);
 
+  // Browsers block direct requests to *.webuntis.com because WebUntis
+  // doesn't send an Access-Control-Allow-Origin header - so on web builds
+  // every request is routed through Timely's own Vercel proxy
+  // (api/webuntis-proxy.js) instead, which isn't subject to that
+  // restriction. Native builds (no browser involved) call WebUntis
+  // directly, unchanged.
+  static Uri _proxied(Uri realUrl) {
+    if (!kIsWeb) return realUrl;
+    return Uri(path: '/api/webuntis-proxy', queryParameters: {'url': realUrl.toString()});
+  }
+
   static Future<WebUntisSession> authenticate({
     required String school,
     required String username,
@@ -19,7 +30,7 @@ class WebUntisService {
     };
 
     final response = await http.post(
-      url,
+      _proxied(url),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -86,7 +97,7 @@ class WebUntisService {
     };
 
     final response = await http.post(
-      url,
+      _proxied(url),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
